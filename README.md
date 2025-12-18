@@ -95,4 +95,5 @@ The body of the token has the following format
 ```
 
 The `flags` value is at the moment unused but is intended to encode additional attributes of the authenticated user. The value contained
-in `iss` can be cofigured through the environment variable `TOK_ISS_NAME`.
+in `iss` can be cofigured through the environment variable `TOK_ISS_NAME`. The value `sub` is taken from the common name of the client
+certificate.
