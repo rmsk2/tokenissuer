@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: issuer-config
+data:
+  TOK_ISS_FILE_ROOT: "/opt/config/root.pem"
+  TOK_ISS_FILE_CERT: "/opt/tls/tls.crt"
+  TOK_ISS_FILE_KEY: "/opt/tls/tls.key"
+  TOK_ISS_NAME: "daheim_token_issuer"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: root-config
+data:
+  root.pem: |
+    -----BEGIN CERTIFICATE-----
+    MIIFZjCCA06gAwIBAgIBATANBgkqhkiG9w0BAQsFADBEMQswCQYDVQQGEwJERTEP
+    MA0GA1UECgwGRGFoZWltMQswCQYDVQQLDAJDQTEXMBUGA1UEAwwOUHJpdmF0ZSBU
+    TFMgQ0EwHhcNMjQwOTI2MTc0MDIxWhcNMjkwOTI1MTc0MDIxWjBEMQswCQYDVQQG
+    EwJERTEPMA0GA1UECgwGRGFoZWltMQswCQYDVQQLDAJDQTEXMBUGA1UEAwwOUHJp
+    dmF0ZSBUTFMgQ0EwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQDh4YlC
+    /1iE5pxy+Qc5jSAWf+w1b8EwUeeQY38vMtXTOUSgPA4zDNrGiknHLZdrgY1IJu2D
+    NpAYWiDf7WOEJlHM0ErWbd94hzMNhrf54iaZQb2ebLWP+4Y273EWT8Iq7A9n+7MH
+    mys1QLoSUlJYDaioON+cZ6qbxARFG3GFBAXEz/eBCeNh3if8h7IXl8Lo+NrMfdYf
+    cQD/oCkgK9lghzOcc9BwrkfVJmoecY6QM8kMgcedm4bp0DB6rn3jM/3Ibt0uKbHX
+    p5saQy6yBSCG+Djk/pJi8O5fNo4DjEQt2EyMXDzeaBJr8L3P2FG/pF9Eg4VaVicF
+    fQ9B/wU5LD8Otr5XIwXDOxadEb3sEMOQMTbghpIfsOLcvw1jmPePmkftKkMUNsAo
+    AbgsCH9fraNbmpg7VLykwAOCQuF5ODmRc4E9rZtVtMN7dSDifhyhnT4688YSBVpO
+    1lfRzoq8QHx+oywG6tXwCToAqv5vhPqOEOPw7Wrm/n0kmLfaL2DlwX5VB6I07IqW
+    Oe7tSH93SUxBHgafvTpOsvVXIJj8FS0z3KllvCfAHyfRek4oOLvFfllkMGXdN3nu
+    Px6DKFsk1RXo7n5xnDTGCCnAWa/j3s+J4bUlmmnuzOHmNazFfoy5QpGQ4rh3n+iY
+    QL0TBTA8Tm2ImvnMzIc7GeL7FH9R3GxbJ95yiQIDAQABo2MwYTAdBgNVHQ4EFgQU
+    b02UicilPIf+R/RM919deiKVxVcwHwYDVR0jBBgwFoAUb02UicilPIf+R/RM919d
+    eiKVxVcwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwDQYJKoZIhvcN
+    AQELBQADggIBADcDxwec6xpNdYL4YRCQPH26HAWF1bfpcfyjTU3D9fgPLqVNZPcA
+    AIcyj5k5LjcChYWWYGupP/YRsx6mqdCSYq+tAl1XAuFAAnaigA/Ep9aUFY3nLZAj
+    RN1pOpoRYPGZOF4Zi4G5JXASZHQWYzvfrXj/eJZWJEVYWjV+VQp1Alrqg3sgL9az
+    zr9f3B2To1yCu3G53+lS+mbuqVjgwI8/ujdOQkHu8uHTTgOwXCA3M7VuewmIcnTt
+    p7ecU1jLdH0wV2AyaF/9K0qAs1UhMwxStRVQvAVG5gnKLSPE4lZzfFz9VV0jG60l
+    J157U1iJqsncTidheYRK9xRo7mTHt5grGfEBmp19UvnTJ2Wfj2IvbohssEv5UeoG
+    EWPItX8ZZINjq84QnBD8m9Rye3Stg4l8R0TwQpBqqoyYSDYhGeg6uYy//5s2Q84Q
+    bNcdAgM0ieO6b2QwX1n4PxotnAUcFU25B79q4TnrGaosMo2Yj4xFApBzSrFgMv4g
+    IJu4TOcoRU3GaKgYANc54LC7hfaqVm3nr9uo22DKSzg4jc1dIy6sszu0yNamV2h3
+    bGzf1m9xu+huuK0PMtTWFbaFGwV5e2PvS6/OsRVfMbWRhZ6gwP9o6lJzs8b2cFwg
+    Qu9yqERMkxdhr1+ObkomHpyhUkv0jzJRzGMtKaht7fndM2pAXs2Im8KG
+    -----END CERTIFICATE-----  
+
+---
+# Backend REST service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tokenissuer-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tokenissuer
+  template:
+    metadata:
+      labels:
+        app: tokenissuer
+    spec:
+      containers:
+      - name: tokenissuer-image
+        image: grap.de/tokenissuer:v1
+        imagePullPolicy: Never
+        resources: 
+          limits:
+            memory: "160Mi"
+            cpu: "200m"
+        ports:
+        - containerPort: 4443
+        volumeMounts:
+        - name: tlscert
+          mountPath: /opt/tls
+          readOnly: true
+        - name: rootcert
+          mountPath: /opt/config
+          readOnly: true          
+        envFrom:
+        - configMapRef:
+            name: issuer-config
+        - secretRef:
+            name: token-secret
+      volumes:
+      - name: tlscert
+        secret: 
+          secretName: token-tls
+      - name: rootcert
+        configMap:
+          name: root-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tokenissuer-service
+  labels:
+    app: tokenissuer
+spec:
+  ports:
+    - port: 4443
+      targetPort: 4443
+      protocol: "TCP"
+  selector:
+    app: tokenissuer
+  type: LoadBalancer
+
