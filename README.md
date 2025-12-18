@@ -50,7 +50,7 @@ using mTLS is a kind of all or nothing approach to authentication, i.e. either a
 service which can be called by any client who needs a JWT.
 
 As the service consuming the issued JWT is different from `tokenissuer` and because `tokenisser` can not be "hidden" behind an
-ingress to create the illusion that it has the same origin as the comsuming service it is necessary that `tokenissuer` can be called
+ingress to create the illusion that it has the same origin as the consuming service it is necessary that `tokenissuer` can be called
 via CORS.
 
 As I have found out combining CORS with TLS client authentication creates compatibility issues.  As far as I have understood the whole
