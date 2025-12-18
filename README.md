@@ -63,3 +63,36 @@ Interestingly enough as of December 2025 Firefox (in contrast to Chrome and Safa
 sense and refuses to use mTLS for pre-flight CORS requests. But it offers a config entry called `network.cors_preflight.allow_client_cert`
 which if set to `true` in `about:config` makes Firefox behave like the rest of the browsers. Therefore if you want to use `tokenissuer`
 with Firefox you have to turn on this feature.
+
+# Calling the service
+
+You have to do a `POST` request to the path `/jwthmac/issue` with a JSON structure of the following form as a body:
+
+```
+{
+    "audience": "dummy"
+}
+```
+
+The value given will become part of the JWT as the `aud` claim. In case of success the following JSON data will be returned
+
+```
+{
+    "token": "dfkjlfgjldkfjglkdfjgljerotigjhoh45nzr895z85z45z......."
+}
+```
+
+The body of the token has the following format
+
+```
+{
+  "aud": "dummy",
+  "iat": 1766084882,
+  "sub": "Martin2",
+  "iss": "daheim_token_issuer",
+  "flags": 0
+}
+```
+
+The `flags` value is at the moment unused but is intended to encode additional attributes of the authenticated user. The value contained
+in `iss` can be cofigured through the environment variable `TOK_ISS_NAME`
