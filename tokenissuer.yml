@@ -7,6 +7,7 @@ data:
   TOK_ISS_FILE_CERT: "/opt/tls/tls.crt"
   TOK_ISS_FILE_KEY: "/opt/tls/tls.key"
   TOK_ISS_NAME: "daheim_token_issuer"
+  TOK_ISS_ALLOWED_AUDIENCES: "gschmarri"
 
 ---
 apiVersion: v1

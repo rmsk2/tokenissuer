@@ -9,10 +9,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"tokenissuer/tools"
 )
 
 const tokIssFileRoot = "TOK_ISS_FILE_ROOT"
+const tokIssAllowedAudiences = "TOK_ISS_ALLOWED_AUDIENCES"
 const tokIssHmacSecret = "TOK_ISS_HMAC_SECRET"
 const tokIssFileCert = "TOK_ISS_FILE_CERT"
 const tokIssFileKey = "TOK_ISS_FILE_KEY"
@@ -33,6 +35,10 @@ type IssueRequest struct {
 	IntendedAudience string `json:"audience"`
 }
 
+var allowedAudiences map[string]bool = map[string]bool{
+	"gschmarri": true,
+}
+
 func registerHandlerWithCors(method string, url string, handler func(http.ResponseWriter, *http.Request)) {
 	http.HandleFunc(fmt.Sprintf("%s %s", method, url), handler)
 	http.HandleFunc(fmt.Sprintf("OPTIONS %s", url), corsFunc)
@@ -50,6 +56,7 @@ func corsFunc(w http.ResponseWriter, r *http.Request) {
 }
 
 func issuerFunc(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	tokenIssuer := tools.NewHs256Jwt([]byte(hmacSecret))
 	// There has to be a client cert as we use ClientAuth: tls.RequireAndVerifyClientCert in
 	// tlsConfig
@@ -71,6 +78,13 @@ func issuerFunc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	audience := i.IntendedAudience
+
+	if !allowedAudiences[audience] {
+		log.Printf("Unknown audience '%s' wanted by user '%s'", audience, subject)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
 	claims := tools.MakeClaims(subject, audience, issuerName)
 
 	token, err := tokenIssuer.CreateJwt(claims)
@@ -91,11 +105,10 @@ func issuerFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Issued JWT HMAC token to: %s", subject)
+	log.Printf("Issued JWT HMAC token for audience '%s' to '%s'", audience, subject)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write([]byte(data))
 }
 
@@ -126,6 +139,15 @@ func evalEnvironment() error {
 		fileNameKey = temp
 	}
 
+	temp, ok = os.LookupEnv(tokIssAllowedAudiences)
+	if ok {
+		allowedAudiences = map[string]bool{}
+
+		for j := range strings.SplitSeq(temp, " ") {
+			allowedAudiences[j] = true
+		}
+	}
+
 	return nil
 }
 
@@ -133,6 +155,12 @@ func main() {
 	err := evalEnvironment()
 	if err != nil {
 		log.Fatal("Unable to eval environment: ", err)
+	}
+
+	log.Printf("Issuer name: '%s'", issuerName)
+	log.Printf("Allowed audiences:")
+	for i := range allowedAudiences {
+		log.Println(i)
 	}
 
 	caCert, err := os.ReadFile(fileNameRoot)
