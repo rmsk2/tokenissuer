@@ -118,3 +118,9 @@ certificate.
 
 I made the experience that an IPad Pro bought in 2016 (using IPad OS 17) only allows to import a client certificate if the RSA key size is
 at maximum 2048 bits and (when using `openssl pkcs12`) if the PFX file was generated with the `-legacy` flag.
+
+# Running the token issuer during development
+
+In its simplest form you can run the token issuer using the following command `TOK_ISS_HMAC_SECRET=hmac-secret ./tokenissuer` which sets the
+environment variable `TOK_ISS_HMAC_SECRET`. This is the only variable which has to be set. For all other config items there are more
+or less sensible (at least to me) default values.
