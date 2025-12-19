@@ -123,4 +123,7 @@ at maximum 2048 bits and (when using `openssl pkcs12`) if the PFX file was gener
 
 In its simplest form you can run the token issuer using the following command `TOK_ISS_HMAC_SECRET=hmac-secret ./tokenissuer` which sets the
 environment variable `TOK_ISS_HMAC_SECRET`. This is the only variable which has to be set. For all other config items there are more
-or less sensible (at least to me) default values.
+or less sensible (at least to me) default values. 
+
+Of course you will still need a valid TLS server certifciate for the machine which you use during development. Which can of course be issued
+by a private CA run by yourself. Maybe even with the help of [minica](https://github.com/rmsk2/minica).
