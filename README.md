@@ -70,7 +70,7 @@ ingress to create the illusion that it has the same origin as the consuming serv
 via CORS.
 
 As I have found out combining CORS with TLS client authentication creates compatibility issues.  As far as I have understood the whole
-situation the CORS specfication states that pre-flight CORS requests should not be using credentials. Credentials like for instance 
+situation the CORS specfication states that pre-flight CORS requests should not be using credentials, i.e. credentials like for instance 
 a TLS certificate used for client authentication. If the CORS request is successfull the "real" request then has to include credentials.
 Within the confines of the go standard library I have not found a possibility to let the CORS request pass without TLS client auth while
 at the same time reliably enforcing that the "real" request always uses TLS client auth.
