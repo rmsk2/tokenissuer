@@ -39,20 +39,20 @@ data:
     .
 ```
 
-where `TOK_ISS_HMAC_SECRET` has to contain the HMAC key which is to be used to issue the JWT (see below). `tls.crt` and `tls.key`
-should hold the TLS server certificate as well as the matching private key for the TLS server certificate of `tokenissuer` in PEM
+where `TOK_ISS_HMAC_SECRET` has to contain the HMAC key which is to be used to issue the JWT (see below). Add additional variables for additional secrets and reference them in the
+`TOK_ISS_ENV_SECRETS` variable. `tls.crt` and `tls.key` should hold the TLS server certificate as well as the matching private key for the TLS server certificate of `tokenissuer` in PEM
 format.
 
 # Environment variables
 
 Name | Sematics |
 |-|-|
-| `TOK_ISS_HMAC_SECRET` | Secret used to generate the HMAC of the JWT in form of a string |
 | `TOK_ISS_NAME` | The name to put as issuer (`iss` claim) into the JWT |
 | `TOK_ISS_FILE_ROOT` | The name of a file which contains the root certificates which are allowed for client certs |
 | `TOK_ISS_FILE_CERT` | The name of the file whch holds the server certificate (including possible intermediate CAs) |
 | `TOK_ISS_FILE_KEY` | The name of a file which holds the private key of the server certificate |
 | `TOK_ISS_ALLOWED_AUDIENCES` | A list of allowed audiences separated by blanks |
+| `TOK_ISS_ENV_SECRETS`| A list separated by blanks which specifies the names of the environment variables which hold the secrets to use for the corresponding audiences. The first variable is used for the first audience given in `TOK_ISS_ALLOWED_AUDIENCES`, the second variable for the second audience and so on |
 
 In my `tokenissuer.yml` I mount config maps and secrets as volumes in order to provide the files referenced via `TOK_ISS_FILE_ROOT`, 
 `TOK_ISS_FILE_CERT` and `TOK_ISS_FILE_KEY` to the kubernetes pod.
@@ -121,9 +121,11 @@ at maximum 2048 bits and (when using `openssl pkcs12`) if the PFX file was gener
 
 # Running the token issuer during development
 
-In its simplest form you can run the token issuer using the following command `TOK_ISS_HMAC_SECRET=hmac-secret ./tokenissuer` which sets the
-environment variable `TOK_ISS_HMAC_SECRET`. This is the only variable which has to be set. For all other config items there are more
-or less sensible (at least to me) default values. 
+In its simplest form you can run the token issuer using the following command
+
+```
+TOK_ISS_ALLOWED_AUDIENCES="dummy" TOK_ISS_ENV_SECRETS="TOK_ISS_HMAC_SECRET" TOK_ISS_HMAC_SECRET=a-string-secret-at-least-256-bits-long  ./tokenissuer
+```
 
 Of course you will still need a valid TLS server certificate for the machine which you use during development. Which can of course be issued
 by a private CA run by yourself. Maybe even with the help of [minica](https://github.com/rmsk2/minica).

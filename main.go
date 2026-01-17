@@ -13,19 +13,20 @@ import (
 	"tokenissuer/tools"
 )
 
+const programVersion = "1.1.0"
 const tokIssFileRoot = "TOK_ISS_FILE_ROOT"
 const tokIssAllowedAudiences = "TOK_ISS_ALLOWED_AUDIENCES"
 const tokIssHmacSecret = "TOK_ISS_HMAC_SECRET"
 const tokIssFileCert = "TOK_ISS_FILE_CERT"
 const tokIssFileKey = "TOK_ISS_FILE_KEY"
 const tokIssNameIssuer = "TOK_ISS_NAME"
+const tokIssuerSecrets = "TOK_ISS_ENV_SECRETS"
 const issuerVerb = "POST"
 
 var fileNameRoot = "private-tls-ca.pem"
 var fileNameCert = "server.crt"
 var fileNameKey = "server.pem"
 var issuerName = "daheim_token_issuer"
-var hmacSecret = ""
 
 type TokenResult struct {
 	Token string `json:"token"`
@@ -35,9 +36,8 @@ type IssueRequest struct {
 	IntendedAudience string `json:"audience"`
 }
 
-var allowedAudiences map[string]bool = map[string]bool{
-	"gschmarri": true,
-}
+var secretMap map[string][]byte = map[string][]byte{}
+var allowedAudiences map[string]bool = map[string]bool{}
 
 func registerHandlerWithCors(method string, url string, handler func(http.ResponseWriter, *http.Request)) {
 	http.HandleFunc(fmt.Sprintf("%s %s", method, url), handler)
@@ -57,7 +57,6 @@ func corsFunc(w http.ResponseWriter, r *http.Request) {
 
 func issuerFunc(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	tokenIssuer := tools.NewHs256Jwt([]byte(hmacSecret))
 	// There has to be a client cert as we use ClientAuth: tls.RequireAndVerifyClientCert in
 	// tlsConfig
 	subject := r.TLS.PeerCertificates[0].Subject.CommonName
@@ -84,6 +83,15 @@ func issuerFunc(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+
+	secret, ok := secretMap[audience]
+	if !ok {
+		log.Printf("No secret found for audience: %s", audience)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	tokenIssuer := tools.NewHs256Jwt(secret)
 
 	claims := tools.MakeClaims(subject, audience, issuerName)
 
@@ -114,10 +122,6 @@ func issuerFunc(w http.ResponseWriter, r *http.Request) {
 
 func evalEnvironment() error {
 	var ok bool
-	hmacSecret, ok = os.LookupEnv(tokIssHmacSecret)
-	if !ok {
-		return fmt.Errorf("hmac secret not found in environment")
-	}
 
 	temp, ok := os.LookupEnv(tokIssNameIssuer)
 	if ok {
@@ -139,13 +143,37 @@ func evalEnvironment() error {
 		fileNameKey = temp
 	}
 
-	temp, ok = os.LookupEnv(tokIssAllowedAudiences)
-	if ok {
-		allowedAudiences = map[string]bool{}
+	tempAudiences, ok := os.LookupEnv(tokIssAllowedAudiences)
+	if !ok {
+		return fmt.Errorf("no list of audiences found")
+	}
+	allowedAudiencesList := strings.Split(tempAudiences, " ")
 
-		for j := range strings.SplitSeq(temp, " ") {
-			allowedAudiences[j] = true
+	tempSecretsEnvVars, ok := os.LookupEnv(tokIssuerSecrets)
+	if !ok {
+		return fmt.Errorf("no list of secrets found")
+	}
+	secretsEnvVarList := strings.Split(tempSecretsEnvVars, " ")
+
+	if len(allowedAudiencesList) != len(secretsEnvVarList) {
+		return fmt.Errorf("number of allowed audiences and number of secrets differs")
+	}
+
+	allowedAudiences = map[string]bool{}
+	secretMap = map[string][]byte{}
+
+	for i := range len(allowedAudiencesList) {
+		aud := allowedAudiencesList[i]
+		secEnvVar := secretsEnvVarList[i]
+
+		allowedAudiences[aud] = true
+
+		s, ok := os.LookupEnv(secEnvVar)
+		if !ok {
+			return fmt.Errorf("enviroment variable '%s' not found", secEnvVar)
 		}
+
+		secretMap[aud] = []byte(s)
 	}
 
 	return nil
@@ -157,6 +185,7 @@ func main() {
 		log.Fatal("Unable to eval environment: ", err)
 	}
 
+	log.Printf("Version: %s", programVersion)
 	log.Printf("Issuer name: '%s'", issuerName)
 	log.Printf("Allowed audiences:")
 	for i := range allowedAudiences {

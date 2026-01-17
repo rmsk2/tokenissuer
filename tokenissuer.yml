@@ -8,6 +8,7 @@ data:
   TOK_ISS_FILE_KEY: "/opt/tls/tls.key"
   TOK_ISS_NAME: "daheim_token_issuer"
   TOK_ISS_ALLOWED_AUDIENCES: "gschmarri"
+  TOK_ISS_ENV_SECRETS: "TOK_ISS_HMAC_SECRET"
 
 ---
 apiVersion: v1
