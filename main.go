@@ -13,7 +13,7 @@ import (
 	"tokenissuer/tools"
 )
 
-const programVersion = "1.1.0"
+const programVersion = "1.1.1"
 const tokIssFileRoot = "TOK_ISS_FILE_ROOT"
 const tokIssAllowedAudiences = "TOK_ISS_ALLOWED_AUDIENCES"
 const tokIssHmacSecret = "TOK_ISS_HMAC_SECRET"
@@ -41,14 +41,17 @@ var allowedAudiences map[string]bool = map[string]bool{}
 
 func registerHandlerWithCors(method string, url string, handler func(http.ResponseWriter, *http.Request)) {
 	http.HandleFunc(fmt.Sprintf("%s %s", method, url), handler)
-	http.HandleFunc(fmt.Sprintf("OPTIONS %s", url), corsFunc)
+	corsHandler := func(w http.ResponseWriter, r *http.Request) {
+		corsFunc(w, r, method)
+	}
+	http.HandleFunc(fmt.Sprintf("OPTIONS %s", url), corsHandler)
 }
 
-func corsFunc(w http.ResponseWriter, r *http.Request) {
+func corsFunc(w http.ResponseWriter, r *http.Request, method string) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, Authorization, accept, origin, Cache-Control")
-	w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, OPTIONS", issuerVerb))
+	w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, OPTIONS", method))
 
 	log.Print("CORS request answered")
 
