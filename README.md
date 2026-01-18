@@ -1,7 +1,7 @@
 # Introduction
 
 The idea behind this software is to issue an HMACed JWT to a calling client after a successfull mTLS authentication by that client.
-This JWT can be used to add authentication to my mobile notifier project. `tokenissuer` can be deployed in a a kubernetes cluster. 
+This JWT can be used to add authentication to my mobile notifier project. `tokenissuer` can be deployed in a kubernetes cluster.
 For this purpose `tokenissuer.yml` is provided which defines all non secret values. 
 
 The secrets are expected to be stored in a separate file (let's call it for instance `secrets.yml`), which has to have the following
