@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"tokenissuer/tools"
+	"tokenissuer/jwt"
 )
 
 const programVersion = "1.1.1"
@@ -39,7 +39,11 @@ type IssueRequest struct {
 var secretMap map[string][]byte = map[string][]byte{}
 var allowedAudiences map[string]bool = map[string]bool{}
 
-func registerHandlerWithCors(method string, url string, handler func(http.ResponseWriter, *http.Request)) {
+func registerHandlerWithCors(method string, url string, handlerWithIssuerFunc func(http.ResponseWriter, *http.Request, jwt.SignerGen), genIssuerFunc jwt.SignerGen) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		handlerWithIssuerFunc(w, r, genIssuerFunc)
+	}
+
 	http.HandleFunc(fmt.Sprintf("%s %s", method, url), handler)
 	corsHandler := func(w http.ResponseWriter, r *http.Request) {
 		corsFunc(w, r, method)
@@ -58,7 +62,7 @@ func corsFunc(w http.ResponseWriter, _ *http.Request, method string) {
 	http.Error(w, "No Content", http.StatusNoContent)
 }
 
-func issuerFunc(w http.ResponseWriter, r *http.Request) {
+func issuerFunc(w http.ResponseWriter, r *http.Request, genIssuer jwt.SignerGen) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	// There has to be a client cert as we use ClientAuth: tls.RequireAndVerifyClientCert in
 	// tlsConfig
@@ -94,9 +98,8 @@ func issuerFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenIssuer := tools.NewHs256Jwt(secret)
-
-	claims := tools.MakeClaims(subject, audience, issuerName)
+	tokenIssuer := genIssuer(secret)
+	claims := jwt.MakeClaims(subject, audience, issuerName)
 
 	token, err := tokenIssuer.CreateJwt(claims)
 	if err != nil {
@@ -116,7 +119,7 @@ func issuerFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Issued JWT HMAC token for audience '%s' to '%s'", audience, subject)
+	log.Printf("Issued JWT for audience '%s' to '%s'", audience, subject)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -216,7 +219,8 @@ func main() {
 		TLSConfig: tlsConfig,
 	}
 
-	registerHandlerWithCors(issuerVerb, "/jwthmac/issue", issuerFunc)
+	registerHandlerWithCors(issuerVerb, "/jwthmac/issue", issuerFunc, jwt.NewHs256JwtSigner)
+	registerHandlerWithCors(issuerVerb, "/jwtecdsa/issue", issuerFunc, jwt.NewEs256JwtSigner)
 
 	err = server.ListenAndServeTLS(fileNameCert, fileNameKey)
 	if err != nil {
