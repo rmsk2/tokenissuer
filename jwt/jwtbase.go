@@ -7,6 +7,12 @@ import (
 	"regexp"
 )
 
+const AlgHs256 = "HS256"
+const AlgHs384 = "HS384"
+const AlgEs256 = "ES256"
+const AlgEs384 = "ES384"
+const TypeJwt = "JWT"
+
 type Signer interface {
 	Sign(refVal []byte) []byte
 }

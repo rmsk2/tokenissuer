@@ -3,28 +3,31 @@ package jwt
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/sha512"
 )
 
-type Hs256 struct {
+type HsHmac struct {
 	hmacSecret []byte
+	hashGen    HashGenType
 }
 
-func NewHs256(k []byte) *Hs256 {
-	return &Hs256{
+func NewHsHmac(k []byte, gen HashGenType) *HsHmac {
+	return &HsHmac{
 		hmacSecret: k,
+		hashGen:    gen,
 	}
 }
 
-func (h *Hs256) Sign(refVal []byte) []byte {
-	mac := hmac.New(sha256.New, h.hmacSecret)
+func (h *HsHmac) Sign(refVal []byte) []byte {
+	mac := hmac.New(h.hashGen, h.hmacSecret)
 	mac.Write([]byte(refVal))
 	hmac := mac.Sum(nil)
 
 	return hmac
 }
 
-func (h *Hs256) Verify(refVal []byte, signature []byte) bool {
-	mac := hmac.New(sha256.New, h.hmacSecret)
+func (h *HsHmac) Verify(refVal []byte, signature []byte) bool {
+	mac := hmac.New(h.hashGen, h.hmacSecret)
 	mac.Write([]byte(refVal))
 	expectedMAC := mac.Sum(nil)
 
@@ -32,11 +35,21 @@ func (h *Hs256) Verify(refVal []byte, signature []byte) bool {
 }
 
 func NewHs256JwtSigner(secret []byte) *JwtSigner {
-	t := NewHs256(secret)
+	t := NewHsHmac(secret, sha256.New)
 	return NewJwtSigner(AlgHs256, t)
 }
 
 func NewHs256JwtVerifier(secret []byte) *JwtVerifier {
-	t := NewHs256(secret)
+	t := NewHsHmac(secret, sha256.New)
 	return NewJwtVerifier(AlgHs256, t)
+}
+
+func NewHs384JwtSigner(secret []byte) *JwtSigner {
+	t := NewHsHmac(secret, sha512.New384)
+	return NewJwtSigner(AlgHs384, t)
+}
+
+func NewHs384JwtVerifier(secret []byte) *JwtVerifier {
+	t := NewHsHmac(secret, sha512.New384)
+	return NewJwtVerifier(AlgHs384, t)
 }

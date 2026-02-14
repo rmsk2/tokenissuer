@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-const AlgHs256 = "HS256"
-const AlgEs256 = "ES256"
-const TypeJwt = "JWT"
-
 type hs256Header struct {
 	Algorithm string `json:"alg"`
 	Type      string `json:"typ"`

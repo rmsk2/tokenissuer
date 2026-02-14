@@ -1,7 +1,7 @@
 # Introduction
 
-The idea behind this software is to issue an HMACed JWT to a calling client after a successfull mTLS authentication by that client.
-This JWT can be used to add authentication to my mobile notifier project. `tokenissuer` can be deployed in a kubernetes cluster.
+The idea behind this software is to issue an HMACed or ECDSA signed JWT to a calling client after a successfull mTLS authentication by that
+client. This JWT can be used to add authentication to my mobile notifier project. `tokenissuer` can be deployed in a kubernetes cluster.
 For this purpose `tokenissuer.yml` is provided which defines all non secret values. 
 
 The secrets are expected to be stored in a separate file (let's call it for instance `secrets.yml`), which has to have the following
@@ -41,7 +41,23 @@ data:
 
 where `TOK_ISS_HMAC_SECRET` has to contain the HMAC key which is to be used to issue the JWT (see below). Add additional variables for additional secrets and reference them in the
 `TOK_ISS_ENV_SECRETS` variable. `tls.crt` and `tls.key` should hold the TLS server certificate as well as the matching private key for the TLS server certificate of `tokenissuer` in PEM
-format.
+format. 
+
+If you set the environment variable `TOK_ISS_TYPE` to `ES256` or `ES384` then the secrets have to be PKCS#8 ECDSA private keys in PEM format. You can generate such keys using the
+command
+
+```
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out private_key.pem
+```
+for an ECDSA-256 key or 
+```
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-384 -out private_key.pem
+```
+for an ECDSA-384 key. The corresponding public, key which is needed for verifying the JWTs, can be extracted through the command
+
+```
+openssl pkey -in private_key.pem -pubout -out public_key.pem
+```
 
 # Environment variables
 
@@ -52,6 +68,7 @@ Name | Sematics |
 | `TOK_ISS_FILE_CERT` | The name of the file whch holds the server certificate (including possible intermediate CAs) |
 | `TOK_ISS_FILE_KEY` | The name of a file which holds the private key of the server certificate |
 | `TOK_ISS_ALLOWED_AUDIENCES` | A list of allowed audiences separated by blanks |
+| `TOK_ISS_TYPE`| Set this to `ES256` or `ES384` in order to sign the JWTs with ECDSA or to `HS384` to use SHA-384 HMAC. If not set or if set to any other value then `HS256` (SHA-256 HMAC) is used |
 | `TOK_ISS_ENV_SECRETS`| A list separated by blanks which specifies the names of the environment variables which hold the secrets to use for the corresponding audiences. The first variable is used for the first audience given in `TOK_ISS_ALLOWED_AUDIENCES`, the second variable for the second audience and so on |
 
 In my `tokenissuer.yml` I mount config maps and secrets as volumes in order to provide the files referenced via `TOK_ISS_FILE_ROOT`, 
@@ -82,7 +99,16 @@ with Firefox you have to turn on this feature.
 
 # Calling the service
 
-You have to do a `POST` request to the path `/jwthmac/issue` with a JSON structure of the following form as a body:
+Depending on the signature algrithm you have to do a `POST` request to the following paths 
+
+|Signature type| Path|
+|-|-|
+| `ES256` | `/jwtecdsa256/issue` |
+| `ES384` | `/jwtecdsa384/issue` |
+| `HS256` | `/jwthmac/issue` |
+| `HS384` | `/jwthmac384/issue` |
+
+with a JSON structure of the following form as a body:
 
 ```
 {
@@ -125,6 +151,12 @@ In its simplest form you can run the token issuer using the following command
 
 ```
 TOK_ISS_ALLOWED_AUDIENCES="dummy" TOK_ISS_ENV_SECRETS="TOK_ISS_HMAC_SECRET" TOK_ISS_HMAC_SECRET=a-string-secret-at-least-256-bits-long  ./tokenissuer
+```
+
+or with a ECDSA-256 private key in `private_key.pem`:
+
+```
+TOK_ISS_ALLOWED_AUDIENCES="dummy" TOK_ISS_ENV_SECRETS="TOK_ISS_PRI_KEY" TOK_ISS_PRI_KEY=`cat private_key.pem` TOK_ISS_TYPE=ES256 ./tokenissuer
 ```
 
 Of course you will still need a valid TLS server certificate for the machine which you use during development. Which can of course be issued

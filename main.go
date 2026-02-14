@@ -13,20 +13,27 @@ import (
 	"tokenissuer/jwt"
 )
 
-const programVersion = "1.1.1"
+const programVersion = "1.2.0"
 const tokIssFileRoot = "TOK_ISS_FILE_ROOT"
 const tokIssAllowedAudiences = "TOK_ISS_ALLOWED_AUDIENCES"
-const tokIssHmacSecret = "TOK_ISS_HMAC_SECRET"
+
 const tokIssFileCert = "TOK_ISS_FILE_CERT"
 const tokIssFileKey = "TOK_ISS_FILE_KEY"
 const tokIssNameIssuer = "TOK_ISS_NAME"
 const tokIssuerSecrets = "TOK_ISS_ENV_SECRETS"
+const tokIssuerType = "TOK_ISS_TYPE"
 const issuerVerb = "POST"
 
 var fileNameRoot = "private-tls-ca.pem"
 var fileNameCert = "server.crt"
 var fileNameKey = "server.pem"
 var issuerName = "daheim_token_issuer"
+
+var globalIssuerGen jwt.SignerGen = jwt.NewHs256JwtSigner
+var globalIssuerPath string = "/jwthmac/issue"
+var globalAlgoToUse = jwt.AlgHs256
+var secretMap map[string][]byte = map[string][]byte{}
+var allowedAudiences map[string]bool = map[string]bool{}
 
 type TokenResult struct {
 	Token string `json:"token"`
@@ -35,9 +42,6 @@ type TokenResult struct {
 type IssueRequest struct {
 	IntendedAudience string `json:"audience"`
 }
-
-var secretMap map[string][]byte = map[string][]byte{}
-var allowedAudiences map[string]bool = map[string]bool{}
 
 func registerHandlerWithCors(method string, url string, handlerWithIssuerFunc func(http.ResponseWriter, *http.Request, jwt.SignerGen), genIssuerFunc jwt.SignerGen) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +138,27 @@ func evalEnvironment() error {
 		issuerName = temp
 	}
 
+	temp, ok = os.LookupEnv(tokIssuerType)
+	if ok {
+		switch temp {
+		case jwt.AlgEs256:
+			globalIssuerGen = jwt.NewEs256JwtSigner
+			globalAlgoToUse = jwt.AlgEs256
+			globalIssuerPath = "/jwtecdsa256/issue"
+		case jwt.AlgEs384:
+			globalIssuerGen = jwt.NewEs384JwtSigner
+			globalAlgoToUse = jwt.AlgEs384
+			globalIssuerPath = "/jwtecdsa384/issue"
+		case jwt.AlgHs384:
+			globalIssuerGen = jwt.NewHs384JwtSigner
+			globalAlgoToUse = jwt.AlgHs384
+			globalIssuerPath = "/jwthmac384/issue"
+		default:
+			globalIssuerGen = jwt.NewHs256JwtSigner
+			globalIssuerPath = "/jwthmac/issue"
+		}
+	}
+
 	temp, ok = os.LookupEnv(tokIssFileRoot)
 	if ok {
 		fileNameRoot = temp
@@ -179,7 +204,11 @@ func evalEnvironment() error {
 			return fmt.Errorf("enviroment variable '%s' not found", secEnvVar)
 		}
 
-		secretMap[aud] = []byte(s)
+		bytesSecret := []byte(s)
+		secretMap[aud] = bytesSecret
+
+		// Verify secret format. Panics if parsing failed
+		_ = globalIssuerGen(bytesSecret)
 	}
 
 	return nil
@@ -197,6 +226,7 @@ func main() {
 	for i := range allowedAudiences {
 		log.Println(i)
 	}
+	log.Printf("Issuer path: %s", globalIssuerPath)
 
 	caCert, err := os.ReadFile(fileNameRoot)
 	if err != nil {
@@ -219,8 +249,7 @@ func main() {
 		TLSConfig: tlsConfig,
 	}
 
-	registerHandlerWithCors(issuerVerb, "/jwthmac/issue", issuerFunc, jwt.NewHs256JwtSigner)
-	registerHandlerWithCors(issuerVerb, "/jwtecdsa/issue", issuerFunc, jwt.NewEs256JwtSigner)
+	registerHandlerWithCors(issuerVerb, globalIssuerPath, issuerFunc, globalIssuerGen)
 
 	err = server.ListenAndServeTLS(fileNameCert, fileNameKey)
 	if err != nil {
