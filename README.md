@@ -53,7 +53,7 @@ for an ECDSA-256 key or
 ```
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-384 -out private_key.pem
 ```
-for an ECDSA-384 key. The corresponding public, key which is needed for verifying the JWTs, can be extracted through the command
+for an ECDSA-384 key. The corresponding public key, which is needed for verifying the JWTs, can be extracted through the command
 
 ```
 openssl pkey -in private_key.pem -pubout -out public_key.pem
