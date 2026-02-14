@@ -227,6 +227,7 @@ func main() {
 		log.Println(i)
 	}
 	log.Printf("Issuer path: %s", globalIssuerPath)
+	log.Printf("Signature algorithm: %s", globalAlgoToUse)
 
 	caCert, err := os.ReadFile(fileNameRoot)
 	if err != nil {
