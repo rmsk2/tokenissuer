@@ -13,7 +13,7 @@ import (
 	"tokenissuer/jwt"
 )
 
-const programVersion = "1.2.0"
+const programVersion = "1.2.1"
 const tokIssFileRoot = "TOK_ISS_FILE_ROOT"
 const tokIssAllowedAudiences = "TOK_ISS_ALLOWED_AUDIENCES"
 
@@ -207,8 +207,12 @@ func evalEnvironment() error {
 		bytesSecret := []byte(s)
 		secretMap[aud] = bytesSecret
 
-		// Verify secret format. Panics if parsing failed
-		_ = globalIssuerGen(bytesSecret)
+		if (globalAlgoToUse == jwt.AlgEs256) || (globalAlgoToUse == jwt.AlgEs384) {
+			_, err := jwt.LoadEcdsaPrivateKey(bytesSecret)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
