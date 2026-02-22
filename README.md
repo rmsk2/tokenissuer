@@ -97,24 +97,28 @@ sense and refuses to use mTLS for pre-flight CORS requests. But it offers a conf
 which if set to `true` in `about:config` makes Firefox behave like the rest of the browsers. Therefore if you want to use `tokenissuer`
 with Firefox you have to turn on this feature.
 
+# API documentation
+
+An interactive Swagger UI is available at `/swagger/index.html`. Since all connections to `tokenissuer` require mTLS, a valid client certificate must be installed in the browser or OS certificate store to access the UI. The "Try it out" functionality works under the same condition, as the browser will present the client certificate for the API call as well.
+
+The Swagger spec is generated from source annotations using [swaggo](https://github.com/swaggo/swag). After modifying the annotations in `main.go`, regenerate the spec with:
+
+```
+swag init -g main.go
+```
+
 # Calling the service
 
-Depending on the signature algrithm you have to do a `POST` request to the following paths 
-
-|Signature type| Path|
-|-|-|
-| `ES256` | `/jwtecdsa256/issue` |
-| `ES384` | `/jwtecdsa384/issue` |
-| `HS256` | `/jwthmac/issue` |
-| `HS384` | `/jwthmac384/issue` |
-
-with a JSON structure of the following form as a body:
+Do a `POST` request to `/jwt/issue` with a JSON body of the following form:
 
 ```
 {
-    "audience": "dummy"
+    "audience": "dummy",
+    "algorithm": "HS256"
 }
 ```
+
+The `algorithm` field must match the signing algorithm the server is configured to use via `TOK_ISS_TYPE`. Valid values are `HS256`, `HS384`, `ES256`, and `ES384`. If the value does not match, the server returns HTTP 400.
 
 The value given will become part of the JWT as the `aud` claim. In case of success the following JSON data will be returned
 

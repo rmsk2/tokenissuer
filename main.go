@@ -11,9 +11,11 @@ import (
 	"os"
 	"strings"
 	"tokenissuer/jwt"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-const programVersion = "1.2.1"
+const programVersion = "1.3.0"
 const tokIssFileRoot = "TOK_ISS_FILE_ROOT"
 const tokIssAllowedAudiences = "TOK_ISS_ALLOWED_AUDIENCES"
 
@@ -29,18 +31,20 @@ var fileNameCert = "server.crt"
 var fileNameKey = "server.pem"
 var issuerName = "daheim_token_issuer"
 
+const issuerPath = "/jwt/issue"
+
 var globalIssuerGen jwt.SignerGen = jwt.NewHs256JwtSigner
-var globalIssuerPath string = "/jwthmac/issue"
 var globalAlgoToUse = jwt.AlgHs256
 var secretMap map[string][]byte = map[string][]byte{}
 var allowedAudiences map[string]bool = map[string]bool{}
 
 type TokenResult struct {
-	Token string `json:"token"`
+	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
 }
 
 type IssueRequest struct {
-	IntendedAudience string `json:"audience"`
+	IntendedAudience string `json:"audience"  example:"myservice"`
+	Algorithm        string `json:"algorithm" example:"HS256" enums:"HS256,HS384,ES256,ES384"`
 }
 
 func registerHandlerWithCors(method string, url string, handlerWithIssuerFunc func(http.ResponseWriter, *http.Request, jwt.SignerGen), genIssuerFunc jwt.SignerGen) {
@@ -66,6 +70,16 @@ func corsFunc(w http.ResponseWriter, _ *http.Request, method string) {
 	http.Error(w, "No Content", http.StatusNoContent)
 }
 
+// @Summary     Issue JWT
+// @Description Issues a signed JWT. The `algorithm` field must match the server's configured algorithm (TOK_ISS_TYPE).
+// @Tags        token
+// @Accept      json
+// @Produce     json
+// @Param       request body IssueRequest true "Issue request"
+// @Success     200 {object} TokenResult
+// @Failure     400 {string} string "Invalid request or algorithm mismatch"
+// @Failure     500 {string} string "Internal error"
+// @Router      /jwt/issue [post]
 func issuerFunc(w http.ResponseWriter, r *http.Request, genIssuer jwt.SignerGen) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	// There has to be a client cert as we use ClientAuth: tls.RequireAndVerifyClientCert in
@@ -84,6 +98,12 @@ func issuerFunc(w http.ResponseWriter, r *http.Request, genIssuer jwt.SignerGen)
 	if err != nil {
 		log.Printf("Unable to parse body: '%s'", string(body))
 		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if i.Algorithm != globalAlgoToUse {
+		log.Printf("Algorithm mismatch: requested '%s', configured '%s'", i.Algorithm, globalAlgoToUse)
+		http.Error(w, "Algorithm mismatch", http.StatusBadRequest)
 		return
 	}
 
@@ -144,18 +164,14 @@ func evalEnvironment() error {
 		case jwt.AlgEs256:
 			globalIssuerGen = jwt.NewEs256JwtSigner
 			globalAlgoToUse = jwt.AlgEs256
-			globalIssuerPath = "/jwtecdsa256/issue"
 		case jwt.AlgEs384:
 			globalIssuerGen = jwt.NewEs384JwtSigner
 			globalAlgoToUse = jwt.AlgEs384
-			globalIssuerPath = "/jwtecdsa384/issue"
 		case jwt.AlgHs384:
 			globalIssuerGen = jwt.NewHs384JwtSigner
 			globalAlgoToUse = jwt.AlgHs384
-			globalIssuerPath = "/jwthmac384/issue"
 		default:
 			globalIssuerGen = jwt.NewHs256JwtSigner
-			globalIssuerPath = "/jwthmac/issue"
 		}
 	}
 
@@ -218,6 +234,12 @@ func evalEnvironment() error {
 	return nil
 }
 
+// @title       Token Issuer API
+// @version     1.3.0
+// @description Issues signed JWTs to mTLS-authenticated clients.
+// @description The client certificate CN becomes the `sub` claim.
+// @description The signing algorithm is server-configured via TOK_ISS_TYPE; the client must specify the same algorithm in the request.
+// @description All connections require mTLS. "Try it out" works if a client cert is installed in your browser/OS cert store.
 func main() {
 	err := evalEnvironment()
 	if err != nil {
@@ -230,7 +252,6 @@ func main() {
 	for i := range allowedAudiences {
 		log.Println(i)
 	}
-	log.Printf("Issuer path: %s", globalIssuerPath)
 	log.Printf("Signature algorithm: %s", globalAlgoToUse)
 
 	caCert, err := os.ReadFile(fileNameRoot)
@@ -254,7 +275,10 @@ func main() {
 		TLSConfig: tlsConfig,
 	}
 
-	registerHandlerWithCors(issuerVerb, globalIssuerPath, issuerFunc, globalIssuerGen)
+	http.HandleFunc("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
+	registerHandlerWithCors(issuerVerb, issuerPath, issuerFunc, globalIssuerGen)
 
 	err = server.ListenAndServeTLS(fileNameCert, fileNameKey)
 	if err != nil {

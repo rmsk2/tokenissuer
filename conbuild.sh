@@ -7,7 +7,7 @@ prog=tokenissuer
 rm $binary
 rm $prog
 
-#swag init -g controller/swagger_base.go
+swag init -g main.go
 
 # build binary
 CGO_ENABLED=0 go build
