@@ -12,6 +12,8 @@ import (
 	"strings"
 	"tokenissuer/jwt"
 
+	_ "tokenissuer/docs"
+
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
